@@ -10,7 +10,17 @@ from skimage.io import imsave
 
 LOG_MINIMUM = 1e-8
 
+def _maybe_download(target_dir):
+  target_path = os.path.join(target_dir, "mnist.pkl.gz")
+  if not os.path.exists(target_dir):
+    os.system(" ".join([
+        "wget -P",
+        target_dir,
+        "http://deeplearning.net/data/mnist/mnist.pkl.gz"
+    ]))
+
 def load_mnist(path):
+  _maybe_download(os.path.dirname(path))
   file_in = gzip.open(path, "rb")
   if six.PY2:
     import cPickle
