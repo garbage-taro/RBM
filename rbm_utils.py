@@ -5,7 +5,6 @@ from __future__ import print_function
 import numpy as np
 from scipy.special import expit
 from utils import safe_log
-from datetime import datetime as dt
 
 def reconst(b, c, w, data):
   m_h = expit(np.dot(data, w) + c)
@@ -31,9 +30,9 @@ def gibbs_samp_per(b, c, w, s_vis, n_samp):
 def temp_trans(b, c, w, s_vis, n_step, delta_beta):
   sm_hid = expit( np.dot(s_vis, w) + c )
   s_hid = np.random.binomial(1, sm_hid)
-  s_vis_test = s_vis.copy() 
+  s_vis_test = s_vis.copy()
   s_hid_test = s_hid.copy()
-  log_prob = energy(delta_beta * b, delta_beta * c, delta_beta * w, 
+  log_prob = energy(delta_beta * b, delta_beta * c, delta_beta * w,
                       s_vis, s_hid)
 
   # Melting process
@@ -42,16 +41,16 @@ def temp_trans(b, c, w, s_vis, n_step, delta_beta):
     sm_vis = expit( np.dot(beta * w, s_hid_test.T).T + beta * b )
     s_vis_test = np.random.binomial(1, sm_vis)
     sm_hid = expit( np.dot(s_vis_test, beta * w) + beta * c )
-    s_hid_test = np.random.binomial(1, sm_hid)    
+    s_hid_test = np.random.binomial(1, sm_hid)
 
-    log_prob += energy(delta_beta * b, delta_beta * c, delta_beta * w, 
+    log_prob += energy(delta_beta * b, delta_beta * c, delta_beta * w,
                         s_vis_test, s_hid_test)
 
   beta = 1.0 - delta_beta * n_step
   sm_vis = expit( np.dot(beta * w, s_hid_test.T).T + beta * b )
   s_vis_test = np.random.binomial(1, sm_vis)
   sm_hid = expit( np.dot(s_vis_test, beta * w) + beta * c )
-  s_hid_test = np.random.binomial(1, sm_hid)  
+  s_hid_test = np.random.binomial(1, sm_hid)
   
   # Annealing process
   for i in range(1, n_step, -1):
@@ -59,18 +58,17 @@ def temp_trans(b, c, w, s_vis, n_step, delta_beta):
     sm_vis = expit( np.dot(beta * w, s_hid_test.T).T + beta * b )
     s_vis_test = np.random.binomial(1, sm_vis)
     sm_hid = expit( np.dot(s_vis_test, beta * w) + beta * c )
-    s_hid_test = np.random.binomial(1, sm_hid) 
+    s_hid_test = np.random.binomial(1, sm_hid)
 
-    log_prob -= energy(delta_beta * b, delta_beta * c, delta_beta * w, 
+    log_prob -= energy(delta_beta * b, delta_beta * c, delta_beta * w,
                         s_vis_test, s_hid_test)
   prob = np.minimum(1, np.exp(log_prob))
-  # print("mean transition probability is %f" %np.mean(prob))
   bool_trans = np.random.uniform(0, 1, s_vis.shape[0]) < prob
   
   s_vis = ( s_vis_test.T * bool_trans + s_vis.T * (1 - bool_trans) ).T
   s_hid = ( s_hid_test.T * bool_trans + s_hid.T * (1 - bool_trans) ).T
     
-  return np.float32(s_vis), np.float32(s_hid) 
+  return np.float32(s_vis), np.float32(s_hid)
 
 def energy(b, c, w, s_vis, s_hid):
   return - np.dot(b, s_vis.T) - np.dot(c, s_hid.T) - np.sum(np.dot(s_vis, w) * s_hid, axis=1)
@@ -112,7 +110,7 @@ def calc_remove_cost(b, c, w, data, s_vis, s_hid):
   
   return remove_cost, std
 
-def calc_kl_grad_no_var(b, c, w, batch, s_vis, s_hid):    
+def calc_kl_grad_no_var(b, c, w, batch, s_vis, s_hid):
   m_hid = expit(np.dot(batch, w) + c)
     
   cd_b = - np.mean(batch, axis=0) + np.mean(s_vis, axis=0)
@@ -122,7 +120,7 @@ def calc_kl_grad_no_var(b, c, w, batch, s_vis, s_hid):
     
   return cd_b, cd_c, cd_w
 
-def calc_kl_grad(b, c, w, batch, s_vis, s_hid):    
+def calc_kl_grad(b, c, w, batch, s_vis, s_hid):
   m_hid = expit(np.dot(batch, w) + c)
 
   mean_v_1st = np.mean(batch, axis=0)
@@ -145,13 +143,13 @@ def calc_kl_grad(b, c, w, batch, s_vis, s_hid):
   var_c = (np.mean(m_hid * m_hid, axis=0) - mean_h_1st * mean_h_1st) / (batch.shape[0] - 1.0) \
           + (mean_h_2nd - mean_h_2nd * mean_h_2nd) / (s_hid.shape[0] - 1.0)
 
-  var_w = ((np.dot(batch.T, m_hid * m_hid).flatten()) / batch.shape[0] 
+  var_w = ((np.dot(batch.T, m_hid * m_hid).flatten()) / batch.shape[0]
               - mean_w_1st * mean_w_1st) / (batch.shape[0] - 1.0) \
           + (mean_w_2nd - mean_w_2nd * mean_w_2nd) / (s_hid.shape[0] - 1.0)
   
-  var_b = np.sqrt(var_b) 
-  var_c = np.sqrt(var_c) 
-  var_w = np.sqrt(var_w.reshape(w.shape[0], w.shape[1])) 
+  var_b = np.sqrt(var_b)
+  var_c = np.sqrt(var_c)
+  var_w = np.sqrt(var_w.reshape(w.shape[0], w.shape[1]))
 
   return cd_b, cd_c, cd_w, var_b, var_c, var_w
 
@@ -162,7 +160,7 @@ def calc_c_grad(b, c, w, batch, s_vis, s_hid, target):
 
   mean_v_1st = np.mean(s_vis_bar, axis=0)
   mean_h_1st = np.mean(s_hid_bar, axis=0)
-  mean_w_1st = (np.dot(s_vis_bar.T, s_hid_bar) / 
+  mean_w_1st = (np.dot(s_vis_bar.T, s_hid_bar) /
                   s_vis_bar.shape[0]).flatten()
   
   mean_v_2nd = np.mean(s_vis, axis=0)
@@ -184,14 +182,14 @@ def calc_c_grad(b, c, w, batch, s_vis, s_hid, target):
   rc_c[target] += mean_c_3rd
   rc_w[:, target] += mean_w_3rd
   
-  # Evaluate std 
+  # Evaluate std
   var_b = (mean_v_1st - mean_v_1st * mean_v_1st) / (s_vis_bar.shape[0] - 1.0) \
           + (mean_v_2nd - mean_v_2nd * mean_v_2nd) / (s_vis.shape[0] - 1.0)
 
   var_c = (mean_h_1st - mean_h_1st * mean_h_1st) / (s_hid_bar.shape[0] - 1.0) \
           + (mean_h_2nd - mean_h_2nd * mean_h_2nd) / (s_hid.shape[0] - 1.0)
   
-  var_c[target] += (np.mean(m_hid[:, target] * m_hid[:, target]) 
+  var_c[target] += (np.mean(m_hid[:, target] * m_hid[:, target])
                   - mean_c_3rd * mean_c_3rd) / (len(m_hid) - 1.0)
 
   var_w = ((mean_w_1st - mean_w_1st * mean_w_1st) / (s_hid_bar.shape[0] - 1.0) \
@@ -200,9 +198,9 @@ def calc_c_grad(b, c, w, batch, s_vis, s_hid, target):
   var_w[:, target] += (np.dot(m_hid[:, target] * m_hid[:, target], batch) / len(batch) \
                       - mean_w_3rd * mean_w_3rd) / (len(batch) - 1.0)
   
-  var_b = np.sqrt(var_b) 
-  var_c = np.sqrt(var_c) 
-  var_w = np.sqrt(var_w) 
+  var_b = np.sqrt(var_b)
+  var_c = np.sqrt(var_c)
+  var_w = np.sqrt(var_w)
     
   return rc, rc_b, rc_c, rc_w, var_b, var_c, var_w
 

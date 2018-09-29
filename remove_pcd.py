@@ -5,20 +5,15 @@ from __future__ import print_function
 import os
 import io
 import six
-import gzip
 import shutil
 import argparse
 import numpy as np
 from scipy.special import expit
 from matplotlib import pylab as plt
-from datetime import datetime as dt
 
-import tracker
-import comp_kld_reconst as ckl
-from utils import xentropy
-from utils import load_mnist, load_params, save_images, save_params
-from rbm_utils import calc_kl_grad, calc_c_grad
-from rbm_utils import reconst, gibbs_samp, gibbs_samp_per, calc_remove_cost_app, temp_trans
+from utils import xentropy, load_mnist, load_params, save_images, save_params
+from rbm_utils import (calc_kl_grad, calc_c_grad,
+    reconst, gibbs_samp, gibbs_samp_per, calc_remove_cost_app, temp_trans)
 
 def main():
   data = load_mnist(FLAGS.input_path)
@@ -41,13 +36,11 @@ def main():
   fout.write(u"remove_cost"); fout.write(u"\t")
   fout.write(u"n_remain"); fout.write(u"\t")
   fout.write(u"reconst_cost"); fout.write(u"\t")
-  # fout.write(u"kld"); fout.write(u"\t")
   fout.write(u"\n"); fout.flush()
 
   img_idxs = np.random.choice(len(train), FLAGS.batch_size)
   batch = train[img_idxs]
   s_vis, s_hid = temp_trans(b, c, w, batch, 100, 1e-3)
-  # s_vis, s_hid = gibbs_samp(b, c, w, batch, 1000)
   
   epoch = 0
   while True:
@@ -59,7 +52,7 @@ def main():
       s_vis, s_hid = gibbs_samp_per(b, c, w, s_vis, FLAGS.n_gibbs_samp)
       
       s_vis_f = np.float32(s_vis)
-      s_hid_f = np.float32(s_hid)      
+      s_hid_f = np.float32(s_hid)
       
       remove_cost, rc_std = calc_remove_cost_app(
           b, c, w, batch, s_vis_f, s_hid_f, FLAGS.num_geo)
@@ -73,7 +66,6 @@ def main():
         c = np.delete(c, target)
         w = np.delete(w, target, axis=1)
         s_vis, s_hid = temp_trans(b, c, w, s_vis, 100, 1e-3)
-        # s_vis, s_hid = gibbs_samp_per(b, c, w, s_vis, 1000)
         # Logging
         fout.write(six.text_type(epoch)); fout.write(u"\t")
         fout.write(six.text_type(target)); fout.write(u"\t")
@@ -81,8 +73,6 @@ def main():
         fout.write(six.text_type(len(c))); fout.write(u"\t")
         cost = xentropy(batch, reconst(b, c, w, batch))
         fout.write(six.text_type(cost)); fout.write(u"\t")
-        # kld = ckl.calc_kl(data, b, c, w)
-        # fout.write(six.text_type(kld)); fout.write(u"\t")
         fout.write(u"\n"); fout.flush()
       
         if epoch % FLAGS.save_per == 0:
@@ -123,11 +113,6 @@ def main():
     mask_c = np.random.binomial(1, expit(mask_c))
     mask_w = np.random.binomial(1, expit(mask_w))
     
-    """
-    mask_b = (cd_b * rc_b > 0.0)
-    mask_c = (cd_c * rc_c > 0.0)
-    mask_w = (cd_w * rc_w > 0.0)
-    """        
     if np.sum(mask_b) + np.sum(mask_c) + np.sum(mask_w) == 0:
       break
       
@@ -143,8 +128,6 @@ def main():
     fout.write(six.text_type(len(c))); fout.write(u"\t")
     cost = xentropy(batch, reconst(b, c, w, batch))
     fout.write(six.text_type(cost)); fout.write(u"\t")
-    # kld = ckl.calc_kl(data, b, c, w)
-    # fout.write(six.text_type(kld)); fout.write(u"\t")
     fout.write(u"\n"); fout.flush()
       
     if epoch % FLAGS.save_per == 0:
@@ -160,10 +143,9 @@ def main():
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser("alg3")
-  parser.add_argument("param_root", type=str)
-  parser.add_argument(
-      "--input_path", type=str, default="input/mnist.pkl.gz")
-  parser.add_argument("--log_root", type=str, default="data")
+  parser.add_argument("--param_root", type=str, default="trained_params")
+  parser.add_argument("--input_path", type=str, default="input/mnist.pkl.gz")
+  parser.add_argument("--log_root", type=str, default="logs")
   parser.add_argument("--n_save_imgs", type=int, default=10)
   parser.add_argument("--save_per", type=int, default=5000)
   parser.add_argument("--batch_size", type=int, default=int(1e3))
